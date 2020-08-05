@@ -1,0 +1,4 @@
+build/
+whitepaper/
+cmake-build-debug/
+.idea/

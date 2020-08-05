@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.2)
+set(TARGET uncolfalgo)
+project(${TARGET} C CXX)
+set(CHI_TECH_DIR "~/Desktop/ChiTech/chi-tech")
+include("${CHI_TECH_DIR}/CHI_RESOURCES/Macros/Downstream.cmake")
+file (GLOB_RECURSE SOURCES "*.cc")
+add_executable(${TARGET} "${SOURCES}")
+target_link_libraries(${TARGET} ${CHI_LIBS})
