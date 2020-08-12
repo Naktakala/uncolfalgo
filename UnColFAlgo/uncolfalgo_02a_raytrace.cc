@@ -10,14 +10,13 @@ extern ChiLog& chi_log;
 bool UncolFAlgo::Solver::RayTrace(Ray &ray)
 {
   auto& cell = *grid->cells[ray.current_cell];
-//  std::cout << "Cell " << cell.global_id << " " << ray.omega.PrintS() << "\n";
 
   //======================================== Process material
   double sig_t = 1.0;
 
   //======================================== Raytrace to surface
   chi_mesh::Vector3 surface_intersection_point;
-  double d_to_surface = 1.0e15;
+  double d_to_surface = 1.0e3;
 
   chi_mesh::RayDestinationInfo ray_dest_info =
     chi_mesh::RayTrace(
@@ -26,16 +25,20 @@ bool UncolFAlgo::Solver::RayTrace(Ray &ray)
       ray.current_position,         //[Input] Current position
       ray.omega,                    //[Input] Current direction
       d_to_surface,                 //[Otput] Distance to next surface
-      surface_intersection_point);  //[Otput] Intersection point at next surf
+      surface_intersection_point    //[Otput] Intersection point at next surf
+      );
 
-  //======================================== Contribute to Y
-  ContributeToY(ray,surface_intersection_point,cell,sig_t);
-
-  //======================================== Grab exit point E if applicable
+  //======================================== Process Track
   if (ray.current_cell == ray.SV.owning_cell_global_id)
+  {
+    ProcessTrackInsideSV(ray,surface_intersection_point, cell, sig_t);
     ray.exit_point = surface_intersection_point;
+  }
   else
+  {
+    ProcessTrackOutsideSV(ray, surface_intersection_point, cell, sig_t);
     ray.tau  += d_to_surface*sig_t;
+  }
 
   //======================================== Advance the ray
   ray.current_position = surface_intersection_point;

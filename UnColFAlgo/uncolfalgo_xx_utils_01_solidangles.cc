@@ -63,20 +63,28 @@ double UncolFAlgo::ComputeRaySolidAngle3D(
     auto vAB = vB - vA;
     auto vAC = vC - vA;
 
-    auto tAB = vAB.Cross(n).Normalized();
-    auto tAC = vAC.Cross(n).Normalized();
+    auto tAB = vAB.Cross(n);
+    auto tAC = vAC.Cross(n);
 
     auto bAB = n.Cross(tAB).Normalized();
     auto bAC = n.Cross(tAC).Normalized();
 
     double mu = std::max(-1.0,std::fmin(1.0,bAB.Dot(bAC)));
 
-    return std::fabs(acos(mu));
+    return acos(mu);
   };
 
-  double excess = GetSphericalExcess(surface_vertices[0],
-                                     surface_vertices[1],
-                                     surface_vertices[2]);
+  double excess = 0.0;
+  excess += GetSphericalExcess(surface_vertices[0]-SP,
+                               surface_vertices[1]-SP,
+                               surface_vertices[2]-SP);
+  excess += GetSphericalExcess(surface_vertices[1]-SP,
+                               surface_vertices[2]-SP,
+                               surface_vertices[0]-SP);
+  excess += GetSphericalExcess(surface_vertices[2]-SP,
+                               surface_vertices[0]-SP,
+                               surface_vertices[1]-SP);
 
   return excess - M_PI;
 }
+

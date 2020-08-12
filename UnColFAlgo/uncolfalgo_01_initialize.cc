@@ -24,12 +24,11 @@ void UncolFAlgo::Solver::Initialize()
     geometry_type = GeometryType::THREED_CARTESIAN;
 
   //============================================= Add spatial discretization
-  chi_log.Log(LOG_0) << "SDM";
+  chi_log.Log(LOG_0) << "Computing cell matrices";
   pwl = new SpatialDiscretization_PWL(2);
   pwl->AddViewOfLocalContinuum(grid);
 
   //============================================= Add unknown management
-  chi_log.Log(LOG_0) << "UK_MAN";
   for (int m=0; m<num_moments; ++m)
   {
     uk_man.AddUnknown(chi_math::UnknownType::VECTOR_N,num_groups);
@@ -41,22 +40,27 @@ void UncolFAlgo::Solver::Initialize()
 
 
   //============================================= Determine dof ordering
-  chi_log.Log(LOG_0) << "ORDERING";
   pwl->OrderNodesDFEM(grid);
-  chi_log.Log(LOG_0) << "DOF_COUNT";
   local_dof_count = pwl->GetNumLocalDOFs(grid,&uk_man);
   globl_dof_count = pwl->GetNumLocalDOFs(grid,&uk_man);
 
   phi_old_local.resize(local_dof_count,0.0);
+  phi_old_local_src.resize(local_dof_count,0.0);
   phi_new_local.resize(local_dof_count,0.0);
 
-  Ak.resize(grid->local_cells.size(),MatDbl(4,VecDbl(4,0.0)));
+  //============================================= Initialize cell Ak
+  Ak.resize(grid->local_cells.size());
+  for (auto& cell : grid->local_cells)
+  {
+    int Ndofs = cell.vertex_ids.size();
+    Ak[cell.local_id] = MatDbl(Ndofs,VecDbl(Ndofs,0.0));
+  }
 
-  int IS_refinement_level = 10;
-  int SV_refinement_level = 3;
+  int IS_refinement_level = 1;
+  int SV_refinement_level = 0;
 
   //============================================= Build Interpolation Surfaces (ISs)
-  chi_log.Log(LOG_0) << "IS";
+  chi_log.Log(LOG_0) << "Building Interpolation Surfaces";
   for (auto& cell : grid->local_cells)
     for (auto& face : cell.faces)
       if ((not face.IsNeighborLocal(grid)) or face.neighbor < 0)
@@ -97,18 +101,19 @@ void UncolFAlgo::Solver::Initialize()
             auto& v1 = *grid->vertices[face.vertex_ids[v]];
             auto& v2 = *grid->vertices[face.vertex_ids[(v<vlast)? v+1 : 0]];
 
-            VertList vertices = {v0,v1,v2};
+            auto triangles = SubdivideTriangle({{v0,v1,v2}},IS_refinement_level);
 
-            ISs.push_back(vertices);
+            for (const auto& triangle : triangles)
+              ISs.push_back(triangle);
           }
         }//3D
       }//if face is interface
 
   //============================================= Build Source Volumes (SVs)
-  int SV_counter=0;
+  chi_log.Log(LOG_0) << "Building Source Volumes";
   for (auto& cell : grid->local_cells)
   {
-    if (cell.material_id == 1)
+    if (cell.material_id == 1) //TODO: Rewordk, if material has source
     {
       double sig_t = 1.0; //TODO: Properly get this from material
 
@@ -140,10 +145,6 @@ void UncolFAlgo::Solver::Initialize()
                                     {triangle_verts[1], triangle_verts[2]},
                                     {triangle_verts[2], triangle_verts[0]}};
 
-            chi_log.Log(LOG_0) << "Triangle " << ++SV_counter << ":";
-            for (auto& v : triangle_verts)
-              chi_log.Log(LOG_0) << v.PrintS();
-
             auto vc = GetCentroidFromList(triangle_verts);
 
             auto new_cell = SpawnTriangle(triangle_verts,grid);
@@ -167,11 +168,22 @@ void UncolFAlgo::Solver::Initialize()
             auto& v2 = *grid->vertices[face.vertex_ids[v]];
             auto& v3 = *grid->vertices[face.vertex_ids[(v<V)?v+1:0]];
 
-            VertCollection faces = {{v0,v1,v3},{v0,v3,v2},{v0,v2,v1},{v1,v2,v3}};
+            auto tets = SubDivideTetrahedron({{v0,v1,v2,v3}},SV_refinement_level);
 
-            auto vc = (v0+v1+v2+v3)/4;
+            for (const auto& tet : tets)
+            {
+              VertCollection faces = {{tet[0],tet[2],tet[1]},
+                                      {tet[2],tet[3],tet[1]},
+                                      {tet[3],tet[0],tet[1]},
+                                      {tet[0],tet[3],tet[2]}};
 
-            SVs.emplace_back(vc, 1.0, cell.global_id,faces, sig_t);
+              auto SP = GetCentroidFromList(tet);
+
+              SourceVolume source_volume(SP, 1.0, cell.global_id, faces, sig_t);
+              source_volume.ref_cell = SpawnTetrahedron(tet,grid);
+
+              SVs.push_back(source_volume);
+            }//for tet
           }//for v
         }//for face
       }//polygon

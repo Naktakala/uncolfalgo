@@ -31,6 +31,12 @@ namespace UncolFAlgo
   chi_mesh::Cell* SpawnTriangle(const VertList& verts,
                                 chi_mesh::MeshContinuum* grid);
 
+  VertCollection SubDivideTetrahedron(const VertCollection& current_tet_coll,
+                                      const int desired_level);
+  chi_mesh::Cell* SpawnTetrahedron(const VertList& verts,
+                                   chi_mesh::MeshContinuum* grid);
+
+
 
   //xx_01
   double ComputeSolidAngle(
@@ -143,6 +149,7 @@ private:
   std::vector<double> shape_values_f;
 
   std::vector<double> phi_old_local;
+  std::vector<double> phi_old_local_src;
   std::vector<MatDbl> Ak;
   std::vector<double> phi_new_local;
 
@@ -160,11 +167,17 @@ public:
   //02a
   bool RayTrace(Ray& ray);
   //02b
-  void ContributeToY(Ray& ray,
-                     const chi_mesh::Vector3& ray_destination,
-                     chi_mesh::Cell& cell,
-                     double sig_t);
+  void ProcessTrackOutsideSV(Ray& ray,
+                             const chi_mesh::Vector3& ray_destination,
+                             chi_mesh::Cell& cell,
+                             double sig_t);
   //02c
+  void ProcessTrackInsideSV(Ray& ray,
+                            const chi_mesh::Vector3& ray_destination,
+                            chi_mesh::Cell& cell,
+                            double sig_t);
+
+  //02d
   void ComputePWLDTransformations();
 };
 

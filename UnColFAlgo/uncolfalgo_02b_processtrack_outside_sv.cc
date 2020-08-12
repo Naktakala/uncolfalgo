@@ -3,11 +3,11 @@
 #include "ChiMesh/Raytrace/raytracing.h"
 
 //###################################################################
-/**Contibutes a ray to y.*/
-void UncolFAlgo::Solver::ContributeToY(Ray& ray,
-                                       const chi_mesh::Vector3& ray_destination,
-                                       chi_mesh::Cell& cell,
-                                       double sig_t)
+/**Process a track outside of the designated source volume.*/
+void UncolFAlgo::Solver::ProcessTrackOutsideSV(Ray& ray,
+                                               const chi_mesh::Vector3& ray_destination,
+                                               chi_mesh::Cell& cell,
+                                               double sig_t)
 {
   if (cell.global_id == ray.SV.owning_cell_global_id) return;
 
@@ -26,7 +26,7 @@ void UncolFAlgo::Solver::ContributeToY(Ray& ray,
                     const chi_mesh::Vector3& direction)
     {
       chi_mesh::Vector3 intersection_point;
-      double d_to_surface = 1.0e15;
+      double d_to_surface = 1.0e5;
 
       chi_mesh::RayDestinationInfo ray_dest_info =
         chi_mesh::RayTrace(
@@ -35,14 +35,15 @@ void UncolFAlgo::Solver::ContributeToY(Ray& ray,
           from_point,                   //[Input] Current position
           direction,                    //[Input] Current direction
           d_to_surface,                 //[Otput] Distance to next surface
-          intersection_point            //[Otput] Intersection point at next surf
+          intersection_point,           //[Otput] Intersection point at next surf
+          1.0e-8,
+          1.0e-10
           );
+
 
       return intersection_point;
     }
   };
-
-//  auto& sv_cell = *grid->cells[ray.SV.owning_cell_global_id];
 
   RAY_TRACER RayTracerCurCell(grid, cell);
   RAY_TRACER RayTracerSrcCell(grid, *ray.SV.ref_cell);
@@ -95,14 +96,13 @@ void UncolFAlgo::Solver::ContributeToY(Ray& ray,
       double xq_mh = (q==0     )? 0.0 : 0.5*(xq+xq_m1);         //x at q-half
       double xq_ph = (q==q_last)? 1.0 : 0.5*(xq+xq_p1);         //x at q+half
 
-      double sq    = s_i + xq   *segment_length; //s at q
+      double sq    = s_i + xq*segment_length; //s at q
       double sq_mh = s_i + xq_mh*segment_length; //s at q-half
       double sq_ph = s_i + xq_ph*segment_length; //s at q+half
 
       double beta_q  = exp(-1.0*sig_t*(sq_mh - sq)) -
                        exp(-1.0*sig_t*(sq_ph - sq));
              beta_q /= sig_t;
-//             beta_q *= qweights[q]; //TODO: might not be here
 
       auto  Q = E + sq*ray.omega;
 
@@ -111,18 +111,20 @@ void UncolFAlgo::Solver::ContributeToY(Ray& ray,
 
       //=============================== Projection on source volume faces
       double J_q = 0.0;
-      for (const auto& face_verts : ray.SV.faces)
+      for (int f=0; f<ray.SV.faces.size(); ++f)
       {
+        const auto& face = ray.SV.ref_cell->faces[f];
+        const auto& face_verts = ray.SV.faces[f];
+
+        if (face.normal.Dot(face_verts.front()-Q)<=0.0) continue;
+
         double domega_SC = ComputeSolidAngle(Q,face_verts,geometry_type);
-        if (domega_SC<=0.0) continue;
 
         auto CC = GetCentroidFromList(face_verts);
         auto omega_QC = (CC - Q).Normalized();
 
         auto I_prime = RayTracerCurCell(Q, omega_QC);
         auto C       = RayTracerSrcCell(CC, -1.0 * omega_QC);
-
-
 
         double tau_cq = sig_t_outside*(I_prime - C).Norm() +
                         sig_t*(I_prime - Q).Norm();
