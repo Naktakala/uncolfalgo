@@ -1,0 +1,3 @@
+/Users/janv4/Desktop/ChiTech/UnColFAlgo/buildc/CMakeFiles/rebuild_cache.dir
+/Users/janv4/Desktop/ChiTech/UnColFAlgo/buildc/CMakeFiles/edit_cache.dir
+/Users/janv4/Desktop/ChiTech/UnColFAlgo/buildc/CMakeFiles/uncolfalgo.dir

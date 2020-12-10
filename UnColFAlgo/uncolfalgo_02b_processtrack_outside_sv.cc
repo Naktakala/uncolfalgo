@@ -9,7 +9,8 @@ void UncolFAlgo::Solver::ProcessTrackOutsideSV(Ray& ray,
                                                chi_mesh::Cell& cell,
                                                double sig_t)
 {
-  if (cell.global_id == ray.SV.owning_cell_global_id) return;
+  auto& SV = SVs[ray.SV_index];
+  if (cell.global_id == SV.owning_cell_global_id) return;
 
   //======================================== Functor for raytracing
   struct RAY_TRACER
@@ -46,8 +47,8 @@ void UncolFAlgo::Solver::ProcessTrackOutsideSV(Ray& ray,
   };
 
   RAY_TRACER RayTracerCurCell(grid, cell);
-  RAY_TRACER RayTracerSrcCell(grid, *ray.SV.ref_cell);
-  double sig_t_s = ray.SV.sig_t;
+  RAY_TRACER RayTracerSrcCell(grid, *SV.ref_cell);
+  double sig_t_s = SV.sig_t;
 
   //======================================== Overall track length
   double tracklength = (ray_destination - ray.current_position).Norm();
@@ -111,10 +112,10 @@ void UncolFAlgo::Solver::ProcessTrackOutsideSV(Ray& ray,
 
       //=============================== Projection on source volume faces
       double J_q = 0.0;
-      for (int f=0; f<ray.SV.faces.size(); ++f)
+      for (int f=0; f<SV.faces.size(); ++f)
       {
-        const auto& face = ray.SV.ref_cell->faces[f];
-        const auto& face_verts = ray.SV.faces[f];
+        const auto& face = SV.ref_cell->faces[f];
+        const auto& face_verts = SV.faces[f];
 
         if (face.normal.Dot(face_verts.front()-Q)<=0.0) continue;
 
@@ -129,9 +130,9 @@ void UncolFAlgo::Solver::ProcessTrackOutsideSV(Ray& ray,
         double tau_cq = sig_t_outside*(I_prime - C).Norm() +
                         sig_t*(I_prime - Q).Norm();
 
-        double L = (ray.SV.SP - E).Norm();
+        double L = (SV.SP - E).Norm();
 
-        double psi_exit = ray.SV.magnitude*(1.0-exp(-sig_t_s*L))/sig_t_s;
+        double psi_exit = SV.magnitude*(1.0-exp(-sig_t_s*L))/sig_t_s;
 
         double psi_q = psi_exit*exp(-tau_cq);
 

@@ -3,7 +3,7 @@ print("Executing input file")
 chiMeshHandlerCreate()
 
 if (L == nil) then L = 5.0; end
-if (N == nil) then N = 40; end
+if (N == nil) then N = 20; end
 
 ds = L/N
 

@@ -13,6 +13,8 @@ void UncolFAlgo::Solver::ProcessTrackInsideSV(Ray& ray,
                                               chi_mesh::Cell& cell,
                                               double sig_t)
 {
+  auto& SV = SVs[ray.SV_index];
+
   //======================================== Grab cell fe info and
   //                                         quadrature information
   auto cell_pwl_view = pwl->MapFeViewL(cell.local_id);
@@ -27,10 +29,10 @@ void UncolFAlgo::Solver::ProcessTrackInsideSV(Ray& ray,
     //====================================== Compute cell volume
     double V = 0.0;
     {
-      auto& v0 = *grid->vertices[ray.SV.ref_cell->vertex_ids[0]];
-      auto& v1 = *grid->vertices[ray.SV.ref_cell->vertex_ids[1]];
-      auto& v2 = *grid->vertices[ray.SV.ref_cell->vertex_ids[2]];
-      auto& v3 = *grid->vertices[ray.SV.ref_cell->vertex_ids[3]];
+      auto& v0 = *grid->vertices[SV.ref_cell->vertex_ids[0]];
+      auto& v1 = *grid->vertices[SV.ref_cell->vertex_ids[1]];
+      auto& v2 = *grid->vertices[SV.ref_cell->vertex_ids[2]];
+      auto& v3 = *grid->vertices[SV.ref_cell->vertex_ids[3]];
 
       //====================================== Build jacobian
       auto v01 = v1-v0;
@@ -48,7 +50,7 @@ void UncolFAlgo::Solver::ProcessTrackInsideSV(Ray& ray,
 
     //====================================== Compute projected area
     double A_p = 0.0;
-    for (const auto& face : ray.SV.faces)
+    for (const auto& face : SV.faces)
     {
       auto v01 = face[1] - face[0];
       auto v02 = face[2] - face[0];
@@ -67,7 +69,7 @@ void UncolFAlgo::Solver::ProcessTrackInsideSV(Ray& ray,
     double psi  = 6.0*tau_max - 3.0*tau_max*tau_max + tau_max*tau_max*tau_max -
                   6.0 + 6.0*exp(-tau_max);
            psi /= tau_max*tau_max*tau_max;
-           psi *= ray.SV.magnitude/sig_t;
+           psi *= SV.magnitude/sig_t;
 
     double Ylm = 1.0;
     double w_psi_Ylm = ray.solid_angle*psi*Ylm;

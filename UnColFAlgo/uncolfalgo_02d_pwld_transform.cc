@@ -7,15 +7,21 @@ extern ChiLog& chi_log;
 /** Computes point-wise values.*/
 void UncolFAlgo::Solver::ComputePWLDTransformations()
 {
+  chi_log.Log() << "Computing PWLD Transformations";
   for (auto& cell : grid->local_cells)
   {
     if (cell.local_id==0) continue;
 
     auto cell_pwl_view = pwl->MapFeViewL(cell.local_id);
+    int Nn = cell_pwl_view->dofs;
 
     MatDbl A = Ak[cell.local_id];
 
-    MatDbl Ainv = chi_math::Inverse(A);
+    MatDbl Ainv(Nn,VecDbl(Nn,0.0));
+    for (int i=0; i<Nn; ++i) Ainv[i][i] = 1.0;
+
+    if ( std::fabs(chi_math::Determinant(A)) > 1.0e-8 )
+      Ainv = chi_math::Inverse(A);
 
     VecDbl b(cell_pwl_view->dofs,0.0);
 
